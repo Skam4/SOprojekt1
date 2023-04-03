@@ -31,7 +31,6 @@ void Sortowanie(int zadania[][4], int n) {
 
 
 int main(int argc, char *argv[]) {
-    pid_t pid, sid;
 
     // Pobieramy taskfile i outfile
     if(argc != 3) {
@@ -83,9 +82,12 @@ int main(int argc, char *argv[]) {
 
 //Sortowanie chronologiczne instrukcji
 
-Sortowanie(zadania, ilosc_zadan);
+Sortowanie(zadania_tab, ilosc_zadan);
 
 /* Fork off the parent process */
+
+pid_t pid, sid;
+
 pid = fork();
 if (pid < 0) {
 exit(EXIT_FAILURE);

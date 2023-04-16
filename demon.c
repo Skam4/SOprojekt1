@@ -29,8 +29,18 @@ void Sortowanie(int zadania[][4], int n) {
 }
 
 
+void sigint_wywolanie(int sig)
+{
+//Można coś napisać
+
+printf("Sigint wywołane");
+exit(0);
+}
+
+
 
 int main(int argc, char *argv[]) {
+    pid_t pid, sid;
 
     // Pobieramy taskfile i outfile
     if(argc != 3) {
@@ -84,17 +94,45 @@ int main(int argc, char *argv[]) {
 
 Sortowanie(zadania_tab, ilosc_zadan);
 
-/* Fork off the parent process */
+//Ustawienie usługi syganłu SIGINT (chyba)
 
-pid_t pid, sid;
+signal(SIGINT, sigint_wywolanie); //Do SIGINT przypisujemy wywołanie funkcji sigint_wywolanie
 
-pid = fork();
+//Dalej
+
+int zadanie = 0;
+
+pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
+
 if (pid < 0) {
+printf("Nie udalo sie utworzyc procesu potomnego dla polecenia:"); //Trzeba dodać które
 exit(EXIT_FAILURE);
 }
-if (pid > 0) {
+
+else if (pid >= 0) {
+
+fprintf(outfile, "%s:%s %s %s \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], zadania_tab[zadanie][2], zadania_tab[zadanie][3],);
+
+if(zadania_tab[zadanie][2] == 0)
+{
+
+}
+
+if(zadania_tab[zadanie][2] == 1)
+{
+
+}
+
+if(zadania_tab[zadanie][2] == 2)
+{
+
+}
+
+zadanie++;
 exit(EXIT_SUCCESS);
 }
+
+//dalej nic nie robiłem
 
 /* Change the file mode mask */
 umask(0);

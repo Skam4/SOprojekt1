@@ -145,8 +145,8 @@ int main(int argc, char *argv[]) {
     	sleep(3600);
     	
     	}
-    
-    
+
+        pom++;
     
     
         //to bedzie zawsze wpisywalo tam tylko pierwsza komende wiec cos jest nie teges

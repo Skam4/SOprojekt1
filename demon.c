@@ -34,13 +34,14 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
+/*
 void sigint_wywolanie(int sig)
 {
 //Można coś napisać
 
 printf("Sigint wywołane\n"); //Czemu \n nie działa?
 exit(0);
-}
+} */
 
 int main(int argc, char *argv[]) {
     pid_t pid, sid;
@@ -128,42 +129,42 @@ int main(int argc, char *argv[]) {
     if (pid >= 0) {
     
     
-    	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów - jeżeli to błędne myślenie to poprawcie
+    	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów
     	
     	for(;;)
     	{
-    	time_t = time(NULL); //pobieramy czas z systemu
-    	
-    	struct tm *local = localtime(&now);
-    	int godzina = local->tm_hour;
-    	int minuta = local->tm_min;
-    	
-    	if(zadania_tab[pom][0] == godzina && zadania_tab[pom][1]==minuta)
-    	{
-    	break;
+	    	time_t now = time(NULL); //pobieramy czas z systemu
+	    	
+	    	struct tm *local = localtime(&now);
+	    	int godzina = local->tm_hour;
+	    	int minuta = local->tm_min;
+	    	
+	    	if(zadania_tab[pom][0] == godzina && zadania_tab[pom][1] == minuta)
+	    	{
+	    		break;
+	    	}
+	    	sleep(3600);
+	    	
     	}
-    	sleep(3600);
-    	
-    	}
-
-        pom++;
+    
+    	pom++;
     
     
-        //to bedzie zawsze wpisywalo tam tylko pierwsza komende wiec cos jest nie teges
+        
         fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
         if(zadania_tab[zadanie][2] == 0)
         {
-
+		fprintf(wypisanie, "0\n");
         }
 
         if(zadania_tab[zadanie][2] == 1)
         {
-
+		fprintf(wypisanie, "1\n");
         }
 
         if(zadania_tab[zadanie][2] == 2)
         {
-
+		fprintf(wypisanie, "2\n");
         }
 
         zadanie++;

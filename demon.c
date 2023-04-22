@@ -38,15 +38,12 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
 void sigint_wywolanie(int sig)
 {
 //Można coś napisać
-
 printf("Sigint wywołane\n"); //Czemu \n nie działa?
 exit(0);
 } */
 
 int main(int argc, char *argv[]) {
     pid_t pid, sid;
-
-	printf("Program odpalil sie");
 	
     // Pobieramy taskfile i outfile
     if(argc != 3) {
@@ -56,7 +53,6 @@ int main(int argc, char *argv[]) {
 
     char *taskfile = argv[1];
     char *outfile = argv[2];
-
 
     //otwieranie pliku taskfile i outfile
     FILE *zadania = fopen(taskfile, "r");
@@ -73,7 +69,6 @@ int main(int argc, char *argv[]) {
         printf("Nie mozna otworzyc pliku outfile!\n");
         return 1;
     }
-
 
     //Wczytywanie danych z pliku taskfile
     char linia[100]; //bufor
@@ -97,18 +92,9 @@ int main(int argc, char *argv[]) {
         ilosc_zadan++;
     }
 
-
-
     //Sortowanie chronologiczne instrukcji
 
     Sortowanie(zadania_tab, ilosc_zadan, komendy);
-
-    //ta sekcja tylko po to zeby zobaczyc jak dziala, potem sie wywali
-    printf("posortowane \n");
-    for(int i=0; i<ilosc_zadan; i++)
-    {
-        printf("komenda %s wykona sie o %d:%d z parametrem %d \n", komendy[i], zadania_tab[i][0], zadania_tab[i][1], zadania_tab[i][3]);
-    }
 
     //Ustawienie usługi syganłu SIGINT (chyba)
 
@@ -118,96 +104,62 @@ int main(int argc, char *argv[]) {
     //Dalej
 
     int zadanie = 0;
-    int pom = 0;
 
     pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
-
     if (pid < 0) {
         printf("Nie udalo sie utworzyc procesu potomnego dla polecenia:"); //Trzeba dodać które
         exit(EXIT_FAILURE);
     }
-    if (pid >= 0) {
-    
-    
+    if (pid == 0) {
     	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów
-    	
+    	start: //etykieta startowa do ktorej bedzie wracac
     	for(;;)
     	{
 	    	time_t now = time(NULL); //pobieramy czas z systemu
-	    	
 	    	struct tm *local = localtime(&now);
 	    	int godzina = local->tm_hour;
 	    	int minuta = local->tm_min;
-	    	
-	    	if(zadania_tab[pom][0] == godzina && zadania_tab[pom][1] == minuta)
+	    	if(zadania_tab[zadanie][0] == godzina && zadania_tab[zadanie][1] == minuta)
 	    	{
+                printf("czas na %d:%d %s %d\n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+                //^powiadomienie takie do testow
 	    		break;
 	    	}
-	    	sleep(3600);
-	    	
+	    	sleep(10);
     	}
-    
-    	pom++;
-    
-    
         
         fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
-        if(zadania_tab[zadanie][2] == 0)
+        if(zadania_tab[zadanie][3] == 0)
         {
-		fprintf(wypisanie, "0\n");
+		    fprintf(wypisanie, "0\n");
+            zadanie++;
+
+            if(zadanie==ilosc_zadan)
+                exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
+            else
+                goto start; //a jezeli nie to leci do etykiety startowej
         }
 
-        if(zadania_tab[zadanie][2] == 1)
+        if(zadania_tab[zadanie][3] == 1)
         {
-		fprintf(wypisanie, "1\n");
+		    fprintf(wypisanie, "1\n");
+            zadanie++;
+            if(zadanie==ilosc_zadan)
+                exit(EXIT_SUCCESS);
+            else
+                goto start;
         }
 
-        if(zadania_tab[zadanie][2] == 2)
+        if(zadania_tab[zadanie][3] == 2)
         {
-		fprintf(wypisanie, "2\n");
+		    fprintf(wypisanie, "2\n");
+            zadanie++;
+            if(zadanie==ilosc_zadan)
+                exit(EXIT_SUCCESS);
+            else
+                goto start;
         }
-
-        zadanie++;
-        exit(EXIT_SUCCESS);
     }
-
-    /* Change the file mode mask */
-    umask(0);
-
-    /* Open any logs here */
-    openlog("mydaemon", LOG_PID|LOG_CONS, LOG_USER);
-
-    /* Create a new SID for the child process */
-    sid = setsid();
-    if (sid < 0) {
-        /* Log the failure */
-        syslog(LOG_ERR, "Could not create new SID for child process");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Change the current working directory */
-    if ((chdir("/")) < 0) {
-        /* Log the failure */
-        syslog(LOG_ERR, "Could not change working directory to /");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Close out the standard file descriptors */
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-
-    /* Daemon-specific initialization goes here */
-
-    /* The Big Loop */
-    while (1) {
-        /* Do some task here ... */
-        syslog(LOG_INFO, "Hello, world!");
-
-        sleep(60); /* wait 60 seconds */
-    }
-
-    exit(EXIT_SUCCESS);
 
     return 0;
 }

@@ -34,14 +34,6 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
-/*
-void sigint_wywolanie(int sig)
-{
-//Można coś napisać
-
-printf("Sigint wywołane\n"); //Czemu \n nie działa?
-exit(0);
-} */
 
 int main(int argc, char *argv[]) {
     pid_t pid, sid;
@@ -120,6 +112,8 @@ int main(int argc, char *argv[]) {
     pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
     //ten pid = fork nie może być na tym etapie w forze, bo tworzyło się 100 procesów potomnych na raz
 
+    int kod_wyjscia = 0;
+
     for(;;)
     {
 
@@ -129,7 +123,7 @@ int main(int argc, char *argv[]) {
 	    
 
 	    if (pid < 0) {
-		printf("Nie udalo sie utworzyc glownego procesu\n");
+		printf("Nie udalo sie utworzyc glownego procesu.\n");
 		exit(EXIT_FAILURE);
 	    }
 	    if (pid >= 0) {
@@ -158,6 +152,9 @@ int main(int argc, char *argv[]) {
 	    	pom++;
 	    
 	    	pid_t pid2 = fork(); // proces potomny wykonujący zadanie
+	    	
+	    	openlog("proces potomny", LOG_PID, LOG_USER); //Inicjalizacja log
+	    	
 	    	if (pid2 < 0) 
 	    	{
 			printf("Nie udalo sie utworzyc procesu potomnego dla polecenia.");
@@ -168,11 +165,14 @@ int main(int argc, char *argv[]) {
 	    	{
 		
 			fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+			
+			syslog(LOG_INFO, "Uruchomiono zadanie %s\n", komendy[zadanie]);
+			
 			if(zadania_tab[zadanie][3] == 0)
 			{
 				fprintf(wypisanie, "0\n");
 						
-				system(komendy[zadanie]);
+				kod_wyjscia = system(komendy[zadanie]);
 				
 			}
 
@@ -185,6 +185,8 @@ int main(int argc, char *argv[]) {
 			{
 				fprintf(wypisanie, "2\n");
 			}
+			
+			syslog(LOG_INFO, "Zadanie %s zakonczone z kodem wyjscia %d\n", komendy[zadanie], kod_wyjscia);
 		
 		}
 		
@@ -193,12 +195,17 @@ int main(int argc, char *argv[]) {
 		zadanie++;
 		if(zadanie == ilosc_zadan)
 		{
+		
+		closelog();
+		
 		exit(EXIT_SUCCESS);
 		break;
 		}
 	    }
 	    
     }
+    
+    closelog();
 
 	//nie wykasowujmy jeszcze tego - może się przyda
 

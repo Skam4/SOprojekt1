@@ -117,8 +117,8 @@ int main(int argc, char *argv[]) {
 
     //Dalej
 
-	pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
-	//ten pid = fork nie może być na tym etapie w forze, bo tworzyło się 100 procesów potomnych na raz
+    pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
+    //ten pid = fork nie może być na tym etapie w forze, bo tworzyło się 100 procesów potomnych na raz
 
     for(;;)
     {
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
 	    
 
 	    if (pid < 0) {
-		printf("Nie udalo sie utworzyc procesu potomnego dla polecenia:"); //Trzeba dodać które
+		printf("Nie udalo sie utworzyc glownego procesu\n");
 		exit(EXIT_FAILURE);
 	    }
 	    if (pid >= 0) {
@@ -154,27 +154,42 @@ int main(int argc, char *argv[]) {
 		    	}
 	    	}
 	    	
-	    	printf("Już pora!");
+	    	printf("Już pora");
 	    	pom++;
 	    
-	    
+	    	pid_t pid2 = fork(); // proces potomny wykonujący zadanie
+	    	if (pid2 < 0) 
+	    	{
+			printf("Nie udalo sie utworzyc procesu potomnego dla polecenia.");
+			exit(EXIT_FAILURE);
+	    	}
+	    	
+	    	if (pid2 >= 0)
+	    	{
 		
-		fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
-		if(zadania_tab[zadanie][2] == 0)
-		{
-			fprintf(wypisanie, "0\n");
-		}
+			fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+			if(zadania_tab[zadanie][3] == 0)
+			{
+				fprintf(wypisanie, "0\n");
+						
+				system(komendy[zadanie]);
+				
+			}
 
-		if(zadania_tab[zadanie][2] == 1)
-		{
-			fprintf(wypisanie, "1\n");
-		}
+			if(zadania_tab[zadanie][3] == 1)
+			{
+				fprintf(wypisanie, "1\n");
+			}
 
-		if(zadania_tab[zadanie][2] == 2)
-		{
-			fprintf(wypisanie, "2\n");
+			if(zadania_tab[zadanie][3] == 2)
+			{
+				fprintf(wypisanie, "2\n");
+			}
+		
 		}
-
+		
+		
+		
 		zadanie++;
 		if(zadanie == ilosc_zadan)
 		{

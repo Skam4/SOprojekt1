@@ -31,6 +31,40 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
          strcpy(komendy[j + 1], pom2[i]);
     }
 }
+
+void parametr_0(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
+{
+    printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+    fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+
+    FILE *fp;
+    char wynik[1024];
+    fp = popen(komendy[zadanie], "r");  // wywołanie polecenia w celu zapisania jego tresci
+    
+    if (fp == NULL) {
+        printf("Błąd podczas wywoływania polecenia.\n");
+    }
+
+    // Odczytanie wyniku z polecenia i zapisanie go do zmiennej
+    while (fgets(wynik, sizeof(wynik), fp) != NULL) {}
+
+    pclose(fp);  // zamknięcie strumienia
+
+    fprintf(wypisanie, "%s\n", wynik); //wypisanie wyniku polecenia do pliku (na razie wypisuje tylko ostatnie słowo z wyniku danego polecenia, trzeba pokminić nad tym jeszcze)
+}
+
+void parametr_1(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
+{
+    printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+    fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+}
+
+void parametr_2(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
+{
+    printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+    fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+}
+
 /*
 void sigint_wywolanie(int sig)
 {
@@ -109,7 +143,6 @@ int main(int argc, char *argv[]) {
     if (pid == 0) {
     
     	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów
-    	start: //etykieta startowa do ktorej bedzie wracac
     	
     	for(;;)
     	{
@@ -121,40 +154,54 @@ int main(int argc, char *argv[]) {
 	    	{
                 printf("czas na %d:%d %s %d\n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
                 //^powiadomienie takie do testow
-	    		break;
-	    	}
-	    	sleep(10);
-    	}
-        
-        fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
-        
-        syslog(LOG_INFO, "Uruchomiono zadanie %s\n", komendy[zadanie]);
-        
-        //Te ify będą jako funckje
-        
-        if(zadania_tab[zadanie][3] == 0)
-        {
-		    fprintf(wypisanie, "0\n");
-		    kod_wyjscia = system(komendy[zadanie]);
-        }
-        if(zadania_tab[zadanie][3] == 1)
-        {
-		    fprintf(wypisanie, "1\n");
-        }
-        if(zadania_tab[zadanie][3] == 2)
-        {
-		    fprintf(wypisanie, "2\n");
-        }
-        
-        syslog(LOG_INFO, "Zadanie %s zakonczone z kodem wyjscia %d\n", komendy[zadanie], kod_wyjscia);
-        
-        zadanie++;
-        if(zadanie==ilosc_zadan)
-        	exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
-        else
-        	goto start; //a jezeli nie to leci do etykiety startowej
-        
-    }
+                pid_t pid2 = fork(); //proces potomny wykonujacy zadanie
+                if (pid2 < 0) 
+	    	    {
+			        printf("Nie udalo sie utworzyc procesu potomnego dla polecenia.");
+			        exit(EXIT_FAILURE);
+	    	    }
+                else if(pid2==0)
+                {
+                    syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+                    if(zadania_tab[zadanie][3] == 0)
+                    {
+                        parametr_0(zadania_tab, komendy, zadanie, wypisanie);
+                    }
+                    if(zadania_tab[zadanie][3] == 1)
+                    {
+                        parametr_1(zadania_tab, komendy, zadanie, wypisanie);
+                    }
+                    if(zadania_tab[zadanie][3] == 2)
+                    {
+                        parametr_2(zadania_tab, komendy, zadanie, wypisanie);
+                    }
 
+                    /*kod_wyjscia = system(komendy[zadanie]);*/
+                    
+                    //ZAPISYWANIE KODU WYJŚCIA (wczesniej bylo to zrobione za pomoca funkcji system(), ale przez to wypisywalo sie do terminala a te popen podobno sprawia, ze tak nie bedzie, aczkolwiek kiedy wyskoczy błąd to nadal sie wypisuje do terminala, co jest troche problematyczne)
+                    char output[1024];
+                    FILE *fp;
+                    fp = popen(komendy[zadanie], "r");
+                    if (fp == NULL) 
+                    {
+                        printf("Błąd podczas wywoływania polecenia.\n");
+                        return 1;
+                    }
+                    // Odczytanie wyniku z polecenia i zapisanie go do zmiennej
+                    while (fgets(output, sizeof(output), fp) != NULL) {}
+                    kod_wyjscia = pclose(fp);
+
+                    syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy[zadanie],  zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1], kod_wyjscia);
+                    
+                    exit(EXIT_SUCCESS); //zakonczenie dzialania procesu potomnego wykonujacego zadanie
+                }
+                zadanie++;
+                if(zadanie==ilosc_zadan)
+        	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
+		
+		//nie musi być start i goto bo mamy wszystko w for. A for bardziej czytelny jest
+	    	}
+    	}
+    }
     return 0;
 }

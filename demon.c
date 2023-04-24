@@ -198,9 +198,16 @@ int main(int argc, char *argv[]) {
                 zadanie++;
                 if(zadanie==ilosc_zadan)
         	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
+<<<<<<< HEAD
 		
 		//nie musi być start i goto bo mamy wszystko w for. A for bardziej czytelny jest
 	    	}
+=======
+                else
+        	        goto start; //a jezeli nie to leci do etykiety startowej
+	    	}
+	    	sleep(10); //co 10 sekund sprawdza czy juz czas na kolejne zadanie
+>>>>>>> 914f7364465d36cfc491bf87a2b51f4dafdbc3b4
     	}
     }
     return 0;

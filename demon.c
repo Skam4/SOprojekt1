@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <time.h>
+
 //Funkcja sortowania przez wstawianie
 void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     int i, j, k, pom[4];
@@ -32,6 +33,7 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
+
 void parametr_0(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
 {
     printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
@@ -53,25 +55,54 @@ void parametr_0(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wy
     fprintf(wypisanie, "%s\n", wynik); //wypisanie wyniku polecenia do pliku (na razie wypisuje tylko ostatnie słowo z wyniku danego polecenia, trzeba pokminić nad tym jeszcze)
 }
 
+
 void parametr_1(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
 {
     printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
     fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+    
+    
+    FILE *fp;
+    char wynik[1024];
+    fp = popen(komendy[zadanie], "r");  // wywołanie polecenia w celu zapisania jego tresci
+    
+    if (fp == NULL) {
+        printf("Błąd podczas wywoływania polecenia.\n");
+    }
+
+    // Odczytanie wyniku z polecenia i zapisanie go do zmiennej
+    while (fgets(wynik, sizeof(wynik), fp) != NULL) {}
+
+    pclose(fp);  // zamknięcie strumienia
+
+    fprintf(stderr, "%s\n", wynik); //wypisanie wyniku polecenia do wyjścia błędów (na razie wypisuje tylko ostatnie słowo z wyniku danego polecenia, trzeba pokminić nad tym jeszcze)
 }
+
 
 void parametr_2(int zadania_tab[][4], char komendy[][100], int zadanie, FILE* wypisanie)
 {
     printf("%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
     fprintf(wypisanie, "%d:%d %s %d \n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
+    
+    FILE *fp;
+    char wynik[1024];
+    fp = popen(komendy[zadanie], "r");  // wywołanie polecenia w celu zapisania jego tresci
+    
+    if (fp == NULL) {
+        printf("Błąd podczas wywoływania polecenia.\n");
+    }
+
+    // Odczytanie wyniku z polecenia i zapisanie go do zmiennej
+    while (fgets(wynik, sizeof(wynik), fp) != NULL) {}
+
+    pclose(fp);  // zamknięcie strumienia
+
+    fprintf(wypisanie, "%s\n", wynik); //wypisanie wyniku polecenia do pliku (na razie wypisuje tylko ostatnie słowo z wyniku danego polecenia, trzeba pokminić nad tym jeszcze)
+    fprintf(stderr, "%s\n", wynik); //wypisanie wyniku polecenia do wyjścia błędów (na razie wypisuje tylko ostatnie słowo z wyniku danego polecenia, trzeba pokminić nad tym jeszcze)
 }
 
-/*
-void sigint_wywolanie(int sig)
-{
-//Można coś napisać
-printf("Sigint wywołane\n"); //Czemu \n nie działa?
-exit(0);
-} */
+
+
 int main(int argc, char *argv[]) {
     pid_t pid, sid;
 	
@@ -199,9 +230,8 @@ int main(int argc, char *argv[]) {
                 if(zadanie==ilosc_zadan)
         	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
 		
-		        //nie musi być start i goto bo mamy wszystko w for. A for bardziej czytelny jest
+		//nie musi być start i goto bo mamy wszystko w for. A for bardziej czytelny jest
 	    	}
-
     	}
     }
     return 0;

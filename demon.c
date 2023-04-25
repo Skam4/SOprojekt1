@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
                 pid_t pid2 = fork(); //proces potomny wykonujacy zadanie
                 if (pid2 < 0) 
 	    	    {
-			        printf("Nie udalo sie utworzyc procesu potomnego dla polecenia.");
+			        printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy[zadanie]);
 			        exit(EXIT_FAILURE);
 	    	    }
                 else if(pid2==0)
@@ -232,6 +232,7 @@ int main(int argc, char *argv[]) {
 		
 		//nie musi być start i goto bo mamy wszystko w for. A for bardziej czytelny jest
 	    	}
+	    sleep(10);
     	}
     }
     return 0;

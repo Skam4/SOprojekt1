@@ -167,6 +167,7 @@ int main(int argc, char *argv[]) {
                         {
                             fprintf(stderr, "%s\n", wynik);
                         }
+
                     }
 
                     kod_wyjscia = pclose(fp);  // zamknięcie strumienia i pobranie kodu wyjscia
@@ -180,6 +181,7 @@ int main(int argc, char *argv[]) {
         	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
 	    	}
 	    sleep(30);
+
     	}
     }
     return 0;

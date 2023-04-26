@@ -70,22 +70,34 @@ int main(int argc, char *argv[])
     int ilosc_zadan = 0; //pomocniczo liczymy ilosc zadan
     int zadania_tab[1000][4]; //tablica z oddzielonymi wartosciami
     char komendy[100][100]; //tablica char do przechowywania komend
-    
-    
+
+    char znak;
+    char odczytany_bajt;
+    int i=0;
+
     ////// linia=bufor, 100 = maksymalna dlugosc
-    while (read(zadania, linia, 100) && ilosc_zadan < 1000)
+    while (odczytany_bajt = read(zadania, &znak, 1) > 0)
     {
-        wartosc = strtok(linia, ":");
-        zadania_tab[ilosc_zadan][0] = atoi(wartosc); //atoi zamienia char na int
-        wartosc = strtok(NULL, ":");
-        zadania_tab[ilosc_zadan][1] = atoi(wartosc);
-        wartosc = strtok(NULL, ":");
-        zadania_tab[ilosc_zadan][2] = atoi(wartosc);
-        strcpy(komendy[ilosc_zadan], wartosc); //zapisywanie napisu jako char w tablicy komendy, bo wczesniej zamienia sie w int i jest to bez sensu
-        wartosc = strtok(NULL, ":");
-        zadania_tab[ilosc_zadan][3] = atoi(wartosc);
-        ilosc_zadan++;
-        printf("\nilosc_zadan: %d\n",ilosc_zadan);
+        if(znak == '\n')
+        {
+            linia[i] = '\0'; // przetwarzanie linii tekstu
+            i=0;
+            wartosc = strtok(linia, ":");
+            zadania_tab[ilosc_zadan][0] = atoi(wartosc); //atoi zamienia char na int
+            wartosc = strtok(NULL, ":");
+            zadania_tab[ilosc_zadan][1] = atoi(wartosc);
+            wartosc = strtok(NULL, ":");
+            zadania_tab[ilosc_zadan][2] = atoi(wartosc);
+            strcpy(komendy[ilosc_zadan], wartosc); //zapisywanie napisu jako char w tablicy komendy, bo wczesniej zamienia sie w int i jest to bez sensu
+            wartosc = strtok(NULL, ":");
+            zadania_tab[ilosc_zadan][3] = atoi(wartosc);
+            ilosc_zadan++;
+            printf("\nilosc_zadan: %d\n",ilosc_zadan);
+        }
+        else
+        {
+            linia[i++] = znak;
+        }
     }
 
     //Sortowanie chronologiczne instrukcji

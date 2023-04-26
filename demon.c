@@ -33,6 +33,16 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
+
+int CzasDoZadania(int hour, int minutes)
+{
+	time_t now = time(NULL); //pobieramy czas z systemu
+	struct tm *local = localtime(&now);
+	int godzina = local->tm_hour;
+	int minuta = local->tm_min;
+	return ((godzina-hour)*3600 + (minuta-minutes)*60);
+}
+
 int main(int argc, char *argv[]) {
     pid_t pid, sid;
 	
@@ -89,12 +99,13 @@ int main(int argc, char *argv[]) {
     //Dalej
     
     
-    int zadanie = 0;
+    int zadanie = 0; //odlicza ilość zrobionych zadań
     int kod_wyjscia = 0;
+    int sekundy = 0; //pobiera za ile sekund musi się obudzić demon
     
-    pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
+    pid = fork(); //Fork - funkcja uruchamia proces glowny
     
-    openlog("Proces potomny", LOG_PID, LOG_USER); //Inicjalizacja log
+    openlog("Proces glowny", LOG_PID, LOG_USER); //Inicjalizacja log
     
     if (pid < 0) {
         printf("Nie udalo sie utworzyc procesu potomnego dla polecenia:"); //Trzeba dodać które
@@ -105,14 +116,13 @@ int main(int argc, char *argv[]) {
     
     	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów
     	
-    	for(;;)
+    	while(ilosc_zadan >= zadanie)
     	{
-	    	time_t now = time(NULL); //pobieramy czas z systemu
-	    	struct tm *local = localtime(&now);
-	    	int godzina = local->tm_hour;
-	    	int minuta = local->tm_min;
-	    	if(zadania_tab[zadanie][0] == godzina && zadania_tab[zadanie][1] == minuta)
-	    	{
+	    	
+	    	sekundy = CzasDoZadania(zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+	    	
+	    	sleep(sekundy);
+	    	
                 //printf("czas na %d:%d %s %d\n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
                 //^powiadomienie takie do testow
                 pid_t pid2 = fork(); //proces potomny wykonujacy zadanie
@@ -167,7 +177,6 @@ int main(int argc, char *argv[]) {
                         {
                             fprintf(stderr, "%s\n", wynik);
                         }
-
                     }
 
                     kod_wyjscia = pclose(fp);  // zamknięcie strumienia i pobranie kodu wyjscia
@@ -179,9 +188,7 @@ int main(int argc, char *argv[]) {
                 zadanie++;
                 if(zadanie==ilosc_zadan)
         	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
-	    	}
-	    sleep(30);
-
+	    	
     	}
     }
     return 0;

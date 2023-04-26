@@ -3,7 +3,10 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <time.h>
 
 //Funkcja sortowania przez wstawianie
@@ -33,7 +36,8 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
     pid_t pid, sid;
 	
     // Pobieramy taskfile i outfile
@@ -46,15 +50,15 @@ int main(int argc, char *argv[]) {
     char *outfile = argv[2];
     
     //otwieranie pliku taskfile i outfile
-    FILE *zadania = fopen(taskfile, "r");
-    FILE *wypisanie = fopen(outfile, "w");
+    int zadania = open(taskfile, O_RDONLY);
+    int wypisanie = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     
-    if(zadania == NULL)
+    if(zadania == -1)
     {
         printf("Nie mozna otworzyc pliku taskfile!\n");
         return 1;
     }
-    if(wypisanie == NULL)
+    if(wypisanie == -1)
     {
         printf("Nie mozna otworzyc pliku outfile!\n");
         return 1;
@@ -69,7 +73,7 @@ int main(int argc, char *argv[]) {
     
     
     ////// linia=bufor, 100 = maksymalna dlugosc
-    while (fgets(linia, 100, zadania) && ilosc_zadan < 1000)
+    while (read(zadania, linia, 100) && ilosc_zadan < 1000)
     {
         wartosc = strtok(linia, ":");
         zadania_tab[ilosc_zadan][0] = atoi(wartosc); //atoi zamienia char na int
@@ -81,13 +85,11 @@ int main(int argc, char *argv[]) {
         wartosc = strtok(NULL, ":");
         zadania_tab[ilosc_zadan][3] = atoi(wartosc);
         ilosc_zadan++;
+        printf("\nilosc_zadan: %d\n",ilosc_zadan);
     }
-    
+
     //Sortowanie chronologiczne instrukcji
     Sortowanie(zadania_tab, ilosc_zadan, komendy);
-    
-    //Dalej
-    
     
     int zadanie = 0;
     int kod_wyjscia = 0;
@@ -101,20 +103,17 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    if (pid == 0) {
-    
+    if (pid == 0) 
+    {
     	//Musimy sprawdzać czy już jest czas i wtedy lecimy do ifów
-    	
     	for(;;)
     	{
-	    	time_t now = time(NULL); //pobieramy czas z systemu
+            time_t now = time(NULL); //pobieramy czas z systemu
 	    	struct tm *local = localtime(&now);
 	    	int godzina = local->tm_hour;
 	    	int minuta = local->tm_min;
 	    	if(zadania_tab[zadanie][0] == godzina && zadania_tab[zadanie][1] == minuta)
 	    	{
-                //printf("czas na %d:%d %s %d\n", zadania_tab[zadanie][0], zadania_tab[zadanie][1], komendy[zadanie], zadania_tab[zadanie][3]);
-                //^powiadomienie takie do testow
                 pid_t pid2 = fork(); //proces potomny wykonujacy zadanie
                 if (pid2 < 0) 
 	    	    {
@@ -123,66 +122,40 @@ int main(int argc, char *argv[]) {
 	    	    }
                 else if(pid2==0)
                 {
-                    FILE *fp;
-                    char wynik[1024];
-                    fp = popen(komendy[zadanie], "r");  // wywołanie polecenia w celu zapisania jego tresci
-                    
-                    if (fp == NULL) 
+                    pid_t pid3 = fork();
+                    if (pid3 < 0) 
                     {
-                        printf("Błąd podczas wywoływania polecenia.\n");
-                    }
-
-                    syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
-                    
-                    //Parametr 0
-                    if(zadania_tab[zadanie][3] == 0)
+                        perror("fork");
+                        exit(1);
+                    } 
+                    else if (pid3 == 0) 
                     {
-                        fprintf(wypisanie, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
-                        while (fgets(wynik, sizeof(wynik), fp) != NULL) 
-                        {
-                            fprintf(wypisanie, "%s\n", wynik);
-                        }
-                    }
-
-                    //Parametr 1
-                    if(zadania_tab[zadanie][3] == 1)
+                        dup2(wypisanie, STDOUT_FILENO);
+                        close(wypisanie);
+                        execlp(komendy[zadanie], komendy[zadanie], NULL);
+                        perror("execlp");
+                        exit(1);
+                    } 
+                    else 
                     {
-                        fprintf(wypisanie, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
-                        while (fgets(wynik, sizeof(wynik), fp) != NULL) 
-                        {
-                            fprintf(stderr, "%s\n", wynik);
+                        int status;
+                        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                        printf("Polecenie wykonane poprawnie.\n");
+                        } else {
+                        printf("Błąd wykonania polecenia.\n");
                         }
+                        close(wypisanie);
+                        exit(0);
                     }
-
-                    //Parametr 2
-                    if(zadania_tab[zadanie][3] == 2)
-                    {
-                        fprintf(wypisanie, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
-                        while (fgets(wynik, sizeof(wynik), fp) != NULL) 
-                        {
-                            fprintf(wypisanie, "%s\n", wynik);
-                        }
-                        //nwm czy to tak zadziała
-                        while (fgets(wynik, sizeof(wynik), fp) != NULL) 
-                        {
-                            fprintf(stderr, "%s\n", wynik);
-                        }
-
-                    }
-
-                    kod_wyjscia = pclose(fp);  // zamknięcie strumienia i pobranie kodu wyjscia
-
-                    syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy[zadanie],  zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1], kod_wyjscia);
-                    
-                    exit(EXIT_SUCCESS); //zakonczenie dzialania procesu potomnego wykonujacego zadanie
                 }
                 zadanie++;
                 if(zadanie==ilosc_zadan)
-        	        exit(EXIT_SUCCESS); //jezeli zrobil juz wszystkie zadania to sie konczy
-	    	}
-	    sleep(30);
-
-    	}
+                {
+                    exit(EXIT_SUCCESS);
+                }
+            }
+            sleep(30);
+        }
     }
     return 0;
 }

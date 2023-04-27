@@ -57,7 +57,6 @@ void stdout_plik(int wypisanie, char komendy[][100], int zadanie)
         {
             arg[i] = strtok(NULL," ");
         }
-        printf("arg[i]: %s\n",arg[i]);
         i++;
     }
 
@@ -86,7 +85,7 @@ int CzasDoZadania(int hour, int minutes)
 	int czas1, czas2;
 	czas1 = hour*3600 + minutes*60;
 	czas2 = godzina*3600 + minuta*60;
-	return czas1-czas2;
+	return czas1-czas2 > 1 ? czas1-czas2 : 1;
 }
 
 jmp_buf restart_point;

@@ -38,24 +38,46 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
-//wypisanie wyniku polecenia do pliku
-void stdout_plik(int wypisanie, char komendy[][100], int zadanie)
+//wypisanie wyniku polecenia i/lub błędu do pliku
+void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
-    dup2(wypisanie, STDOUT_FILENO);
+    int dev_null = open("/dev/null", O_WRONLY);
+    if(parametr==0)
+    {
+        dup2(wypisanie, STDOUT_FILENO);
+        dup2(dev_null, STDERR_FILENO);
+    }
+    if(parametr==1)
+    {
+        dup2(dev_null, STDOUT_FILENO);
+        dup2(wypisanie, STDERR_FILENO);
+    }
+    if(parametr==2)
+    {
+        dup2(wypisanie, STDOUT_FILENO);
+        dup2(wypisanie, STDERR_FILENO);
+    }
     close(wypisanie);
-    execlp(komendy[zadanie], komendy[zadanie], NULL);
-    perror("execlp");
-    exit(1);
-}
+    close(dev_null);
 
-//wypisanie bledu polecenia do pliku
-void stderr_plik(int wypisanie, char komendy[][100], int zadanie)
-{//do jakiego pliku? Nie da się odrazu do tych logów?
-    //no ale w zadaniu jest że user chce do pliku to otrzymać kiedy podawany jest parametr 1 lub 2
-    dup2(wypisanie, STDERR_FILENO);
-    close(wypisanie);
-    execlp(komendy[zadanie], komendy[zadanie], NULL);
-    perror("execlp");
+    char* arg[10];
+    int i=0;
+
+    while(i<10)
+    {
+        if(i==0)
+        {
+            arg[i] = strtok(komendy[zadanie]," ");
+        }
+        else
+        {
+            arg[i] = strtok(NULL," ");
+        }
+        i++;
+    }
+
+    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
+    perror("Error");
     exit(1);
 }
 
@@ -68,10 +90,14 @@ int CzasDoZadania(int hour, int minutes)
 	int czas1, czas2;
 	czas1 = hour*3600 + minutes*60;
 	czas2 = godzina*3600 + minuta*60;
-	return czas1-czas2;
+	return czas1-czas2 > 1 ? czas1-czas2 : 1;
 }
 
 jmp_buf restart_point;
+
+int **tasks; //tablica z zadaniami, potrzebna do sygnałów
+char *taski; //tablica przetrzymująca polecenia jako napisy
+int wiersze; //Funkcja zapamiętująca ilość wierszy w tablicy tasks
 
 /*void sigusr1_handler(int sig)
 {
@@ -84,31 +110,56 @@ jmp_buf restart_point;
     exit(EXIT_FAILURE);
 }*/
 
+//Funkcja obsługująca sygnał SIGINT
+void sigint_handler(int sig)
+{
+    exit(EXIT_SUCCESS);
+}
+
+//Funkcja obsługująca sygnał SIGUSR1
 void sigusr1_handler(int sig) 
 {
     // ustawienie wartości powrotu dla longjmp()
     int return_value = 1;
-
     // wywołanie longjmp() z przygotowanym punktem skoku
     longjmp(restart_point, return_value);
 }
 
+//Funkcja obsługująca sygnał SIGUSR2
 void sigusr2_handler(int sig)
 {
-
+    syslog(LOG_INFO, "Lista zadań pozostala do wykonania:\n");
+    for(int i=0 ; i < wiersze ; i++)
+    {
+        if(CzasDoZadania(tasks[i][0], tasks[i][1]) >= 1)
+        {
+            syslog(LOG_INFO, "Polecenie %s o godzinie %d:%d\n", taski[i], tasks[i][0], tasks[i][1]);
+        }
+    }
 }
 
+//Funkcja która wywołuje się podczas wywołania exit
+void czysc()
+{
+    //Czyścimy pamięć globalnej tablicy tasks
+    for(int i=0 ; i < wiersze ; i++)
+    free(tasks[i]);
 
+    //Czyścimy pamięć globalnej tablicy taski
+    free(taski);
+}
+
+//Funkcja main
 int main(int argc, char *argv[]) 
 {
-
+    //if do którego funkcja wchodzi, gdy wywołamy SIGUSR1
     if (setjmp(restart_point) != 0) {
         // kod do wykonania w momencie powrotu z sigusr1_handler
-        printf("SIGUSR1 WYKONANY!");
+        printf("SIGUSR1 WYKONANY!\n");
     }
 
-
-    pid_t pid, sid;
+    //Tworzymy identyfikator
+    pid_t pid;
 	
     // Pobieramy taskfile i outfile
     if(argc != 3) 
@@ -117,13 +168,19 @@ int main(int argc, char *argv[])
         return 1;
     }
     
+    //Do taskfile przydzielamy argument 1
     char *taskfile = argv[1];
+    //Do outfile przydzielamy argument 2
     char *outfile = argv[2];
     
     //otwieranie pliku taskfile i outfile
     int zadania = open(taskfile, O_RDONLY);
     int wypisanie = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     
+    //Funkcja uruchamiająca się przy wywołaniu exit
+    atexit(czysc);
+
+    //Obsługa błędów plików
     if(zadania == -1)
     {
         printf("Nie mozna otworzyc pliku taskfile!\n");
@@ -191,10 +248,26 @@ int main(int argc, char *argv[])
         {
             zadania_tab2[pomoc][0] = zadania_tab[i][0];
             zadania_tab2[pomoc][1] = zadania_tab[i][1];
-            zadania_tab2[pomoc][2] = zadania_tab[i][2];
+            zadania_tab2[pomoc][2] = zadania_tab[i][2];  //o tu
             zadania_tab2[pomoc][3] = zadania_tab[i][3];
             pomoc++;
         }
+    }
+
+    //alokacja pamięci tablicy tasks
+    tasks = (int **) malloc(pomoc+1 * sizeof(int *));
+    
+    //alokacja pamięci tablicy taski
+    taski = (char *) malloc(pomoc+1 * sizeof(char));
+
+    wiersze = pomoc;
+
+    // przypisanie zadania_tab2 pod tasks
+    for (int i = 0; i < pomoc; i++) 
+    {
+        tasks[i] = (int *) malloc(4 * sizeof(int));
+        tasks[i] = zadania_tab2[i];
+        //taski[i] = komendy[i];
     }
 
     //Sortowanie chronologiczne instrukcji
@@ -208,8 +281,26 @@ int main(int argc, char *argv[])
     
     openlog("Proces potomny", LOG_PID, LOG_USER); //Inicjalizacja log
     
-    signal(SIGUSR1, sigusr1_handler); //SIGUSR1 inicjalizacja
-    signal(SIGUSR2, sigusr2_handler); //SIGUSR2 inicjalizacja
+    //signal(SIGUSR1, sigusr1_handler); //SIGUSR1 inicjalizacja
+    //signal(SIGUSR2, sigusr2_handler); //SIGUSR2 inicjalizacja chyba te ify niżej wystarcza ale trzeba jeszcze sprawdzic
+
+    if (signal(SIGINT, sigint_handler) == SIG_ERR)
+    {
+        perror("Nie udało się zarejestrować obsługi sygnału SIGINT");
+        exit(EXIT_FAILURE);
+    }
+
+    if (signal(SIGUSR1, sigusr1_handler) == SIG_ERR) //SIGUSR1 inicjalizacja
+    {
+        perror("Nie udało się zarejestrować obsługi sygnału SIGUSR1");
+        exit(EXIT_FAILURE);
+    }
+
+    if (signal(SIGUSR2, sigusr2_handler) == SIG_ERR) //SIGUSR2 inicjalizacja
+    {
+        perror("Nie udało się zarejestrować obsługi sygnału SIGUSR2");
+        exit(EXIT_FAILURE);
+    }
     
     if (pid < 0) 
     {
@@ -226,60 +317,49 @@ int main(int argc, char *argv[])
 	    	printf("Demon obudzi sie za: %d sekund\n", sekundy);
 	    	sleep(sekundy);
 
-                pid_t pid2 = fork(); //Proces potomny wykonujacy zadanie
-                if (pid2 < 0) 
-	    	    {
-			        printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy[zadanie]);
-			        exit(EXIT_FAILURE);
-	    	    }
-                else if(pid2==0)
-                {
-                    pid_t pid3 = fork(); //Proces potomny wywolany w celu wykonania zadania
-                    if (pid3 < 0) 
-                    {
-                        printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy[zadanie]);
-			            exit(EXIT_FAILURE);
-                    } 
-                    else if (pid3 == 0) 
-                    {
-                        syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+            pid_t pid2 = fork(); //Proces potomny wykonujacy zadanie
+            if (pid2 < 0) 
+	    	{
+			    printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy[zadanie]);
+			    exit(EXIT_FAILURE);
+	    	}
+            else if(pid2==0)
+            {
+                syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
 
-                        char buf[100];
-                        snprintf(buf, sizeof(buf), "\nUruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
-                        write(wypisanie, buf, strlen(buf));
+                char buf[100];
+                snprintf(buf, sizeof(buf), "\nUruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+                write(wypisanie, buf, strlen(buf));
                         
-                        //Kolejne parametry
-                        if(zadania_tab[zadanie][3] == 0)
-                        {
-                            stdout_plik(wypisanie, komendy, zadanie);
-                        }
-                        else if(zadania_tab[zadanie][3] == 1)
-                        {
-                            stderr_plik(wypisanie, komendy, zadanie);
-                        }
-                        else if(zadania_tab[zadanie][3] == 2)
-                        {
-                            stdout_plik(wypisanie, komendy, zadanie);
-                            stderr_plik(wypisanie, komendy, zadanie);
-                        }
-                        else
-                        {
-                            snprintf(buf, sizeof(buf), "\nNieprawidlowa wartosc parametru\n\n");
-                            write(wypisanie, buf, strlen(buf));
-                        }
-                    }
-                    kod_wyjscia = close(wypisanie);
-                    syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy[zadanie],  zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1], kod_wyjscia);
-                    exit(EXIT_SUCCESS);
-                }
-                zadanie++;
-                if(zadanie==ilosc_zadan)
+                //Kolejne parametry
+                if(zadania_tab[zadanie][3] == 0)
                 {
-                    //zamkniecie pliku dodac
-                    exit(EXIT_SUCCESS);
+                    stdout_stderr(wypisanie, komendy, zadanie, 0);
                 }
-            
-            
+                else if(zadania_tab[zadanie][3] == 1)
+                {
+                    stdout_stderr(wypisanie, komendy, zadanie, 1);
+                }
+                else if(zadania_tab[zadanie][3] == 2)
+                {
+                    stdout_stderr(wypisanie, komendy, zadanie, 2);
+                }
+                else
+                {
+                    snprintf(buf, sizeof(buf), "Nieprawidlowa wartosc parametru\n\n");
+                    write(wypisanie, buf, strlen(buf));
+                }
+                    
+                kod_wyjscia = close(wypisanie);
+                syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy[zadanie],  zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1], kod_wyjscia);
+                exit(EXIT_SUCCESS);
+            }
+            zadanie++;
+            if(zadanie==ilosc_zadan)
+            {
+                //zamkniecie pliku dodac
+                exit(EXIT_SUCCESS);
+            }
         }
     }
     exit(EXIT_SUCCESS);

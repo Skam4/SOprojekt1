@@ -58,31 +58,7 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
         dup2(wypisanie, STDERR_FILENO);
     }
     close(wypisanie);
-<<<<<<< HEAD
     close(dev_null);
-=======
-
-    char* arg[10];
-    int i=0;
-
-    while(i<10)
-    {
-        if(i==0)
-        {
-            arg[i] = strtok(komendy[zadanie]," ");
-        }
-        else
-        {
-            arg[i] = strtok(NULL," ");
-        }
-        i++;
-    }
-
-    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
-    perror("execlp");
-    exit(1);
-}
->>>>>>> a5a7e31e5ba7158265d5a40b01fd87a069407086
 
     char* arg[10];
     int i=0;
@@ -264,6 +240,7 @@ int main(int argc, char *argv[])
 
     //tutaj trzeba zrobić prawdziwą tablice zadania_tab
     int zadania_tab2[1000][4]; //mozna inaczej nazwac
+    char komendy2[1000][100];
     int pomoc = 0;
 
     for(int i = 0; i < ilosc_zadan ; i++)
@@ -273,6 +250,7 @@ int main(int argc, char *argv[])
             zadania_tab2[pomoc][0] = zadania_tab[i][0];
             zadania_tab2[pomoc][1] = zadania_tab[i][1];
             zadania_tab2[pomoc][2] = zadania_tab[i][2];  //o tu
+            strcpy(komendy2[pomoc], komendy[i]);
             zadania_tab2[pomoc][3] = zadania_tab[i][3];
             pomoc++;
         }
@@ -291,7 +269,7 @@ int main(int argc, char *argv[])
     {
         tasks[i] = (int *) malloc(4 * sizeof(int));
         tasks[i] = zadania_tab2[i];
-        //taski[i] = komendy[i];
+        taski[i] = komendy2[i];
     }
 
     //Sortowanie chronologiczne instrukcji

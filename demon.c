@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#include <setjmp.h>
 
 //Funkcja sortowania przez wstawianie
 void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
@@ -48,9 +49,14 @@ void stdout_plik(int wypisanie, char komendy[][100], int zadanie)
 }
 
 //wypisanie bledu polecenia do pliku
-void stderr_plik()
-{
-    
+void stderr_plik(int wypisanie, char komendy[][100], int zadanie)
+{//do jakiego pliku? Nie da się odrazu do tych logów?
+    //no ale w zadaniu jest że user chce do pliku to otrzymać kiedy podawany jest parametr 1 lub 2
+    dup2(wypisanie, STDERR_FILENO);
+    close(wypisanie);
+    execlp(komendy[zadanie], komendy[zadanie], NULL);
+    perror("execlp");
+    exit(1);
 }
 
 int CzasDoZadania(int hour, int minutes)
@@ -65,8 +71,43 @@ int CzasDoZadania(int hour, int minutes)
 	return czas1-czas2;
 }
 
+jmp_buf restart_point;
+
+/*void sigusr1_handler(int sig)
+{
+    char *program = "./demon";
+    char *args[] = {program, "taskfile.txt", "outfile.txt", NULL};
+    execvp(program, args);
+
+    //Jeżeli błąd to:  - UZUPEŁNIĆ
+    perror("execvp");
+    exit(EXIT_FAILURE);
+}*/
+
+void sigusr1_handler(int sig) 
+{
+    // ustawienie wartości powrotu dla longjmp()
+    int return_value = 1;
+
+    // wywołanie longjmp() z przygotowanym punktem skoku
+    longjmp(restart_point, return_value);
+}
+
+void sigusr2_handler(int sig)
+{
+
+}
+
+
 int main(int argc, char *argv[]) 
 {
+
+    if (setjmp(restart_point) != 0) {
+        // kod do wykonania w momencie powrotu z sigusr1_handler
+        printf("SIGUSR1 WYKONANY!");
+    }
+
+
     pid_t pid, sid;
 	
     // Pobieramy taskfile i outfile
@@ -133,8 +174,31 @@ int main(int argc, char *argv[])
         }
     }
 
+    close(zadania); //
+
+    time_t now = time(NULL); //pobieramy czas z systemu
+	struct tm *local = localtime(&now);
+	int godzina = local->tm_hour;
+	int minuta = local->tm_min;
+
+    //tutaj trzeba zrobić prawdziwą tablice zadania_tab
+    int zadania_tab2[1000][4]; //mozna inaczej nazwac
+    int pomoc = 0;
+
+    for(int i = 0; i < ilosc_zadan ; i++)
+    {
+        if(zadania_tab[0] > godzina || (zadania_tab[0] == godzina && zadania_tab[1] >= minuta))
+        {
+            zadania_tab2[pomoc][0] = zadania_tab[i][0];
+            zadania_tab2[pomoc][1] = zadania_tab[i][1];
+            zadania_tab2[pomoc][2] = zadania_tab[i][2];
+            zadania_tab2[pomoc][3] = zadania_tab[i][3];
+            pomoc++;
+        }
+    }
+
     //Sortowanie chronologiczne instrukcji
-    Sortowanie(zadania_tab, ilosc_zadan, komendy);
+    Sortowanie(zadania_tab2, ilosc_zadan, komendy);
     
     int zadanie = 0; //odlicza ilość zrobionych zadań
     int kod_wyjscia = 0;
@@ -143,6 +207,9 @@ int main(int argc, char *argv[])
     pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
     
     openlog("Proces potomny", LOG_PID, LOG_USER); //Inicjalizacja log
+    
+    signal(SIGUSR1, sigusr1_handler); //SIGUSR1 inicjalizacja
+    signal(SIGUSR2, sigusr2_handler); //SIGUSR2 inicjalizacja
     
     if (pid < 0) 
     {
@@ -188,12 +255,12 @@ int main(int argc, char *argv[])
                         }
                         else if(zadania_tab[zadanie][3] == 1)
                         {
-                            stderr_plik();
+                            stderr_plik(wypisanie, komendy, zadanie);
                         }
                         else if(zadania_tab[zadanie][3] == 2)
                         {
                             stdout_plik(wypisanie, komendy, zadanie);
-                            stderr_plik();
+                            stderr_plik(wypisanie, komendy, zadanie);
                         }
                         else
                         {

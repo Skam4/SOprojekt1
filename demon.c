@@ -43,7 +43,25 @@ void stdout_plik(int wypisanie, char komendy[][100], int zadanie)
 {
     dup2(wypisanie, STDOUT_FILENO);
     close(wypisanie);
-    execlp(komendy[zadanie], komendy[zadanie], NULL);
+
+    char* arg[10];
+    int i=0;
+
+    while(i<10)
+    {
+        if(i==0)
+        {
+            arg[i] = strtok(komendy[zadanie]," ");
+        }
+        else
+        {
+            arg[i] = strtok(NULL," ");
+        }
+        printf("arg[i]: %s\n",arg[i]);
+        i++;
+    }
+
+    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
     perror("execlp");
     exit(1);
 }

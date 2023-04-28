@@ -11,23 +11,23 @@
 #include <signal.h>
 #include <setjmp.h>
 
-//Funkcja sortowania przez wstawianie
+//Funkcja sortująca wczytane polecenia sortowaniem przez wstawianie
 void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     int i, j, k, pom[4];
     char pom2[100][100];
     for (i = 0; i < n; i++) {
         j = i - 1;
-        // kopiowanie i-tego wiersza do zmiennej pom
+        //Kopiowanie i-tego wiersza do zmiennej pom
         for (k = 0; k < 4; k++) {
             pom[k] = zadania[i][k];
         }
         strcpy(pom2[i],komendy[i]);
-        // przesuwanie wiekszych elementów w prawo
+        //Przesuwanie wiekszych elementów w prawo
         while (j >= 0 && (zadania[j][0] > pom[0] || (zadania[j][0] == pom[0] && zadania[j][1] > pom[1]))) {
             for (k = 0; k < 4; k++) {
                 zadania[j + 1][k] = zadania[j][k];
             }
-            strcpy(komendy[j + 1], komendy[j]);
+            strcpy(komendy[j + 1], komendy[j]); //Te same operacje wykonywane są na tablicy komend, która pr
             j--;
         }
         // wstawienie i-tego elementu w odpowiednie miejsce
@@ -38,7 +38,7 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
     }
 }
 
-//wypisanie wyniku polecenia i/lub błędu do pliku
+//Wypisywanie wyniku polecenia i/lub błędu do pliku
 void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
     int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
@@ -67,17 +67,17 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
     {
         if(i==0)
         {
-            arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument 
+            arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
         }
         else
         {
-            arg[i] = strtok(NULL," ");
+            arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
         }
         i++;
     }
 
-    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
-    perror("Error");
+    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL); //Funkcja execpl wywołuje proces, który wykonuje przekazane polecenie
+    perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
     exit(1);
 }
 
@@ -104,6 +104,7 @@ int wiersze; //Funkcja zapamiętująca ilość wierszy w tablicy tasks
 //Funkcja obsługująca sygnał SIGINT
 void sigint_handler(int sig)
 {
+
     exit(EXIT_SUCCESS);
 }
 
@@ -169,7 +170,7 @@ int main(int argc, char *argv[])
     int wypisanie = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     
     //Funkcja uruchamiająca się przy wywołaniu exit
-    atexit(czysc);
+    //atexit(czysc);
 
     //Obsługa błędów plików
     if(zadania == -1)
@@ -236,16 +237,29 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < ilosc_zadan ; i++)
     {
-        if(zadania_tab[0] > godzina || (zadania_tab[0] == godzina && zadania_tab[1] >= minuta))
+        if(zadania_tab[i][0] > godzina || (zadania_tab[i][0] == godzina && zadania_tab[i][1] >= minuta))
         {
             zadania_tab2[pomoc][0] = zadania_tab[i][0];
             zadania_tab2[pomoc][1] = zadania_tab[i][1];
             zadania_tab2[pomoc][2] = zadania_tab[i][2]; 
             strcpy(komendy2[pomoc], komendy[i]);
             zadania_tab2[pomoc][3] = zadania_tab[i][3];
+
+            printf("zadania_tab[0]: %d     godzina: %d     zadania_tab[1]: %d     minuta: %d\n", zadania_tab[i][0], godzina, zadania_tab[i][1], minuta);
+            printf("pomoc: %d   i: %d\n", pomoc, i);
+            printf("%d : %d\n", zadania_tab2[pomoc][0], zadania_tab2[pomoc][1]);
+
             pomoc++;
         }
     }
+
+    pomoc--;
+
+    for(int i=0 ; i<pomoc ; i++)
+    {
+        printf("godzina: %d      minuta: %d\n", zadania_tab2[i][0], zadania_tab2[i][1]);
+    }
+
 
     //alokacja pamięci tablicy tasks
     tasks = (int **) malloc(pomoc+1 * sizeof(int *));
@@ -253,10 +267,10 @@ int main(int argc, char *argv[])
     //alokacja pamięci tablicy taski
     taski = (char *) malloc(pomoc+1 * sizeof(char));
 
-    wiersze = pomoc;
+    //wiersze = pomoc;
 
     // przypisanie zadania_tab2 pod tasks
-    for (int i = 0; i < pomoc; i++) 
+    for (int i = 0; i <= pomoc; i++) 
     {
         tasks[i] = (int *) malloc(4 * sizeof(int));
         tasks[i] = zadania_tab2[i];
@@ -264,7 +278,7 @@ int main(int argc, char *argv[])
     }
 
     //Sortowanie chronologiczne instrukcji
-    Sortowanie(zadania_tab2, ilosc_zadan, komendy2);
+    Sortowanie(*zadania_tab2, pomoc, *komendy2);
     
     int zadanie = 0; //odlicza ilość zrobionych zadań
     int kod_wyjscia = 0;
@@ -305,38 +319,38 @@ int main(int argc, char *argv[])
     {
 
     	//Proces dziala w petli sprawdzajac, czy juz jest czas na wykonanie zadania
-    	while(ilosc_zadan >= zadanie)
+    	while(pomoc >= zadanie)
     	{
-            sekundy = CzasDoZadania(zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+            sekundy = CzasDoZadania(zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
 	    	printf("Demon obudzi sie za: %d sekund\n", sekundy);
 	    	sleep(sekundy);
 
             pid_t pid2 = fork(); //Proces potomny wykonujacy zadanie
             if (pid2 < 0) 
 	    	{
-			    printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy[zadanie]);
+			    printf("Nie udalo sie utworzyc procesu potomnego dla polecenia %s.", komendy2[zadanie]);
 			    exit(EXIT_FAILURE);
 	    	}
             else if(pid2==0)
             {
-                syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+                syslog(LOG_INFO, "Uruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n", komendy2[zadanie], zadania_tab2[zadanie][3], zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
 
                 char buf[100];
-                snprintf(buf, sizeof(buf), "\nUruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy[zadanie], zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1]);
+                snprintf(buf, sizeof(buf), "\nUruchomiono polecenie %s z parametrem %d o godzinie %d:%d\n\n", komendy2[zadanie], zadania_tab2[zadanie][3], zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
                 write(wypisanie, buf, strlen(buf));
                         
                 //Kolejne parametry
-                if(zadania_tab[zadanie][3] == 0)
+                if(zadania_tab2[zadanie][3] == 0)
                 {
-                    stdout_stderr(wypisanie, komendy, zadanie, 0);
+                    stdout_stderr(wypisanie, komendy2, zadanie, 0);
                 }
-                else if(zadania_tab[zadanie][3] == 1)
+                else if(zadania_tab2[zadanie][3] == 1)
                 {
-                    stdout_stderr(wypisanie, komendy, zadanie, 1);
+                    stdout_stderr(wypisanie, komendy2, zadanie, 1);
                 }
-                else if(zadania_tab[zadanie][3] == 2)
+                else if(zadania_tab2[zadanie][3] == 2)
                 {
-                    stdout_stderr(wypisanie, komendy, zadanie, 2);
+                    stdout_stderr(wypisanie, komendy2, zadanie, 2);
                 }
                 else
                 {
@@ -345,7 +359,7 @@ int main(int argc, char *argv[])
                 }
                     
                 kod_wyjscia = close(wypisanie);
-                syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy[zadanie],  zadania_tab[zadanie][3], zadania_tab[zadanie][0], zadania_tab[zadanie][1], kod_wyjscia);
+                syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy2[zadanie],  zadania_tab2[zadanie][3], zadania_tab2[zadanie][0], zadania_tab2[zadanie][1], kod_wyjscia);
                 exit(EXIT_SUCCESS);
             }
             zadanie++;

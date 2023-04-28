@@ -41,33 +41,33 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
 //wypisanie wyniku polecenia i/lub błędu do pliku
 void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
-    int dev_null = open("/dev/null", O_WRONLY);
+    int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
     if(parametr==0)
     {
-        dup2(wypisanie, STDOUT_FILENO);
-        dup2(dev_null, STDERR_FILENO);
+        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+        dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
     }
     if(parametr==1)
     {
-        dup2(dev_null, STDOUT_FILENO);
-        dup2(wypisanie, STDERR_FILENO);
+        dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
+        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
     }
     if(parametr==2)
     {
-        dup2(wypisanie, STDOUT_FILENO);
-        dup2(wypisanie, STDERR_FILENO);
+        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
     }
     close(wypisanie);
     close(dev_null);
 
-    char* arg[10];
+    char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
     int i=0;
 
     while(i<10)
     {
         if(i==0)
         {
-            arg[i] = strtok(komendy[zadanie]," ");
+            arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument 
         }
         else
         {
@@ -81,6 +81,7 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
     exit(1);
 }
 
+//Funkcja zwracająca czas do zadania w sekundach
 int CzasDoZadania(int hour, int minutes)
 {
 	time_t now = time(NULL); //pobieramy czas z systemu
@@ -99,16 +100,6 @@ int **tasks; //tablica z zadaniami, potrzebna do sygnałów
 char *taski; //tablica przetrzymująca polecenia jako napisy
 int wiersze; //Funkcja zapamiętująca ilość wierszy w tablicy tasks
 
-/*void sigusr1_handler(int sig)
-{
-    char *program = "./demon";
-    char *args[] = {program, "taskfile.txt", "outfile.txt", NULL};
-    execvp(program, args);
-
-    //Jeżeli błąd to:  - UZUPEŁNIĆ
-    perror("execvp");
-    exit(EXIT_FAILURE);
-}*/
 
 //Funkcja obsługująca sygnał SIGINT
 void sigint_handler(int sig)
@@ -249,7 +240,7 @@ int main(int argc, char *argv[])
         {
             zadania_tab2[pomoc][0] = zadania_tab[i][0];
             zadania_tab2[pomoc][1] = zadania_tab[i][1];
-            zadania_tab2[pomoc][2] = zadania_tab[i][2];  //o tu
+            zadania_tab2[pomoc][2] = zadania_tab[i][2]; 
             strcpy(komendy2[pomoc], komendy[i]);
             zadania_tab2[pomoc][3] = zadania_tab[i][3];
             pomoc++;
@@ -273,7 +264,7 @@ int main(int argc, char *argv[])
     }
 
     //Sortowanie chronologiczne instrukcji
-    Sortowanie(zadania_tab2, ilosc_zadan, komendy);
+    Sortowanie(zadania_tab2, ilosc_zadan, komendy2);
     
     int zadanie = 0; //odlicza ilość zrobionych zadań
     int kod_wyjscia = 0;
@@ -282,28 +273,29 @@ int main(int argc, char *argv[])
     pid = fork(); //Fork- funkcja uruchamia nowy proces potomny
     
     openlog("Proces potomny", LOG_PID, LOG_USER); //Inicjalizacja log
-    
-    //signal(SIGUSR1, sigusr1_handler); //SIGUSR1 inicjalizacja
-    //signal(SIGUSR2, sigusr2_handler); //SIGUSR2 inicjalizacja chyba te ify niżej wystarcza ale trzeba jeszcze sprawdzic
 
+    //SIGINT inicjalizacja
     if (signal(SIGINT, sigint_handler) == SIG_ERR)
     {
         perror("Nie udało się zarejestrować obsługi sygnału SIGINT");
         exit(EXIT_FAILURE);
     }
 
-    if (signal(SIGUSR1, sigusr1_handler) == SIG_ERR) //SIGUSR1 inicjalizacja
+    //SIGUSR1 inicjalizacja
+    if (signal(SIGUSR1, sigusr1_handler) == SIG_ERR)
     {
         perror("Nie udało się zarejestrować obsługi sygnału SIGUSR1");
         exit(EXIT_FAILURE);
     }
 
-    if (signal(SIGUSR2, sigusr2_handler) == SIG_ERR) //SIGUSR2 inicjalizacja
+    //SIGUSR2 inicjalizacja
+    if (signal(SIGUSR2, sigusr2_handler) == SIG_ERR)
     {
         perror("Nie udało się zarejestrować obsługi sygnału SIGUSR2");
         exit(EXIT_FAILURE);
     }
     
+    //Przypadek błędnego utworzenia procesu
     if (pid < 0) 
     {
         printf("Nie udalo sie utworzyc procesu potomnego");
@@ -312,7 +304,7 @@ int main(int argc, char *argv[])
     else if (pid == 0) 
     {
 
-    	//Proces potomny dziala w petli sprawdzajac, czy juz jest czas na wykonanie zadania
+    	//Proces dziala w petli sprawdzajac, czy juz jest czas na wykonanie zadania
     	while(ilosc_zadan >= zadanie)
     	{
             sekundy = CzasDoZadania(zadania_tab[zadanie][0], zadania_tab[zadanie][1]);

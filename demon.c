@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
         printf("Nie mozna otworzyc pliku outfile!\n");
         return 1;
     }
-    
+
     int n = 100; // maksymalna liczba zadań, którą chcemy obsłużyć
     int **zadania_tab = (int **)malloc(n * sizeof(int *)); // alokacja pamięci dla wierszy
     for (int i = 0; i < n; i++) {
@@ -247,7 +247,6 @@ int main(int argc, char *argv[])
             linia[i++] = znak;
         }
     }
-
     close(zadania); //Zamknięcie pliku taskfile po wczytaniu wszystkich zadań
 
     //Filtrowanie zadań (pozbywanie się zadań, które w pliku zostały wpisane z godziną wcześniejszą niż godzina rozpoczęcia programu)
@@ -259,6 +258,7 @@ int main(int argc, char *argv[])
     int zadania_tab2[ilosc_zadan+1][4]; //Tablica zadań, która bedzie przechowywała przefiltrowane zadania
     char komendy2[ilosc_zadan+1][100]; //Tablica komend przechwująca przefiltrowane komendy
     int pomoc = 0;//Zmienna pomocnicza oznacza kolejne indeksy zadania_tab2
+
 
 
     for(int i = 0; i < ilosc_zadan ; i++) //Przechodzimy po wszystkich wczytanych zadaniach
@@ -275,7 +275,9 @@ int main(int argc, char *argv[])
             pomoc++; //Zwiększenie wartości pomocniczej zmiennej oznaczającej kolejne indeksy zadania_tab2
         }
     }
+
     //pomoc--; //Jednorazowe zmniejszenie wartości nowej ilości zadań
+
 
     //Alokacja pamięci tablicy tasks
     tasks = (int **) malloc(pomoc+1 * sizeof(int *));
@@ -286,7 +288,11 @@ int main(int argc, char *argv[])
     //wiersze = pomoc;
 
     //Przypisanie kolejnych wartości zadania_tab2 pod tasks
+<<<<<<< HEAD
     for (int i = 0; i < pomoc; i++) 
+=======
+    for (int i = 0; i <= pomoc; i++) 
+>>>>>>> 5652410d6a01c1382f7e05eed4628bc8919b7313
     {
         tasks[i] = (int *) malloc(4 * sizeof(int));
         tasks[i] = zadania_tab2[i];
@@ -294,7 +300,11 @@ int main(int argc, char *argv[])
     }
 
     //Sortowanie chronologiczne instrukcji (wczytujemy tablicę ze wszystkimi parametrami, ilość wszystkich wczytanych zadań oraz tablicę z konkretnymi komendami)
+<<<<<<< HEAD
     Sortowanie(zadania_tab2, pomoc, komendy2);
+=======
+    Sortowanie(*zadania_tab2, pomoc, *komendy2);
+>>>>>>> 5652410d6a01c1382f7e05eed4628bc8919b7313
     
     int zadanie = 0; //Oblicza ilość zrobionych zadań
     int kod_wyjscia = 0; //Pobiera kod wyjścia
@@ -325,6 +335,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
+
     //SIGALRM inicjalizacja
     if (signal(SIGALRM, handler) == SIG_ERR)
     {
@@ -344,12 +355,16 @@ int main(int argc, char *argv[])
     	{
             //Obliczenie ilości sekund pozostałych do wykonania kolejnego zadania
             sekundy = CzasDoZadania(zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
-            
+
             //Ustawienie czasomierza
             alarm(sekundy);
             
-	    //printf("Demon obudzi sie za: %d sekund\n", sekundy);
-	    pause(); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
+	        //printf("Demon obudzi sie za: %d sekund\n", sekundy);
+	        pause(); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
+
+	    	//printf("Demon obudzi sie za: %d sekund\n", sekundy);
+	    	sleep(sekundy); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
+
 
             pid_t pid2 = fork(); //Proces potomny wykonujący zadanie
 

@@ -288,11 +288,7 @@ int main(int argc, char *argv[])
     //wiersze = pomoc;
 
     //Przypisanie kolejnych wartości zadania_tab2 pod tasks
-<<<<<<< HEAD
     for (int i = 0; i < pomoc; i++) 
-=======
-    for (int i = 0; i <= pomoc; i++) 
->>>>>>> 5652410d6a01c1382f7e05eed4628bc8919b7313
     {
         tasks[i] = (int *) malloc(4 * sizeof(int));
         tasks[i] = zadania_tab2[i];
@@ -300,11 +296,7 @@ int main(int argc, char *argv[])
     }
 
     //Sortowanie chronologiczne instrukcji (wczytujemy tablicę ze wszystkimi parametrami, ilość wszystkich wczytanych zadań oraz tablicę z konkretnymi komendami)
-<<<<<<< HEAD
     Sortowanie(zadania_tab2, pomoc, komendy2);
-=======
-    Sortowanie(*zadania_tab2, pomoc, *komendy2);
->>>>>>> 5652410d6a01c1382f7e05eed4628bc8919b7313
     
     int zadanie = 0; //Oblicza ilość zrobionych zadań
     int kod_wyjscia = 0; //Pobiera kod wyjścia

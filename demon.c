@@ -100,6 +100,7 @@ int **tasks; //Tablica z zadaniami, potrzebna do obsługi sygnałów
 char *taski; //Tablica przetrzymująca polecenia jako napisy
 int wiersze; //Tunkcja zapamiętująca ilość wierszy w tablicy tasks
 
+
 //FUnkcja sigalarm - potrzebna do pause
 void handler(int signum)
 {
@@ -187,7 +188,7 @@ int main(int argc, char *argv[])
         printf("Nie mozna otworzyc pliku outfile!\n");
         return 1;
     }
-
+    
     int n = 100; // maksymalna liczba zadań, którą chcemy obsłużyć
     int **zadania_tab = (int **)malloc(n * sizeof(int *)); // alokacja pamięci dla wierszy
     for (int i = 0; i < n; i++) {
@@ -247,6 +248,7 @@ int main(int argc, char *argv[])
             linia[i++] = znak;
         }
     }
+
     close(zadania); //Zamknięcie pliku taskfile po wczytaniu wszystkich zadań
 
     //Filtrowanie zadań (pozbywanie się zadań, które w pliku zostały wpisane z godziną wcześniejszą niż godzina rozpoczęcia programu)
@@ -258,7 +260,6 @@ int main(int argc, char *argv[])
     int zadania_tab2[ilosc_zadan+1][4]; //Tablica zadań, która bedzie przechowywała przefiltrowane zadania
     char komendy2[ilosc_zadan+1][100]; //Tablica komend przechwująca przefiltrowane komendy
     int pomoc = 0;//Zmienna pomocnicza oznacza kolejne indeksy zadania_tab2
-
 
 
     for(int i = 0; i < ilosc_zadan ; i++) //Przechodzimy po wszystkich wczytanych zadaniach
@@ -275,9 +276,7 @@ int main(int argc, char *argv[])
             pomoc++; //Zwiększenie wartości pomocniczej zmiennej oznaczającej kolejne indeksy zadania_tab2
         }
     }
-
     //pomoc--; //Jednorazowe zmniejszenie wartości nowej ilości zadań
-
 
     //Alokacja pamięci tablicy tasks
     tasks = (int **) malloc(pomoc+1 * sizeof(int *));
@@ -327,14 +326,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-
-    //SIGALRM inicjalizacja
-    if (signal(SIGALRM, handler) == SIG_ERR)
-    {
-        perror("Nie udało się zarejestrować obsługi sygnału SIGALRM");
-        exit(EXIT_FAILURE);
-    }
-    
     if (pid < 0) //Przypadek błędnego utworzenia procesu
     {
         printf("Nie udalo sie utworzyc procesu potomnego");
@@ -347,16 +338,12 @@ int main(int argc, char *argv[])
     	{
             //Obliczenie ilości sekund pozostałych do wykonania kolejnego zadania
             sekundy = CzasDoZadania(zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
-
+            
             //Ustawienie czasomierza
             alarm(sekundy);
             
-	        //printf("Demon obudzi sie za: %d sekund\n", sekundy);
+	        printf("Demon obudzi sie za: %d sekund\n", sekundy);
 	        pause(); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
-
-	    	//printf("Demon obudzi sie za: %d sekund\n", sekundy);
-	    	sleep(sekundy); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
-
 
             pid_t pid2 = fork(); //Proces potomny wykonujący zadanie
 

@@ -4,6 +4,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -41,43 +42,65 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
 //Wypisywanie wyniku polecenia i/lub błędu do pliku
 void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
-    int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
-    if(parametr==0)
-    {
-        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-        dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
-    }
-    if(parametr==1)
-    {
-        dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
-        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-    }
-    if(parametr==2)
-    {
-        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-    }
-    close(wypisanie);
-    close(dev_null);
+    pid_t pid = fork(); //Tworzenie procesu potomnego wykonującego komendę
+    int status;
+    int kod_wyjscia;
 
-    char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
-    int i=0;
-
-    while(i<10)
+    if (pid == -1) 
     {
-        if(i==0)
+        printf("Błąd podczas tworzenia procesu potomnego.\n");
+        exit(EXIT_FAILURE);
+    } 
+    else if (pid == 0) 
+    {
+        // Proces potomny
+        int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
+        if(parametr==0)
         {
-            arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+            dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+            dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
         }
-        else
+        if(parametr==1)
         {
-            arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+            dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
+            dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
         }
-        i++;
+        if(parametr==2)
+        {
+            dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+            dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
+        }
+        close(dev_null);
+        close(wypisanie);
+
+        char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
+        int i=0;
+
+        while(i<10)
+        {
+            if(i==0)
+            {
+                arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+            }
+            else
+            {
+                arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+            }
+            i++;
+        }
+
+        execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL); //Funkcja execpl wywołuje proces, który wykonuje przekazane polecenie
+        perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
+
+        exit(EXIT_FAILURE);
     }
 
-    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL); //Funkcja execpl wywołuje proces, który wykonuje przekazane polecenie
-    perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
+    // Proces macierzysty
+    waitpid(pid, &status, 0);
+    kod_wyjscia = WEXITSTATUS(status);
+
+    syslog(LOG_INFO, "Zakonczono polecenie %s z kodem wyjscia %d\n", komendy[zadanie], kod_wyjscia);
+
     exit(1);
 }
 
@@ -390,9 +413,6 @@ int main(int argc, char *argv[])
                     write(wypisanie, buf, strlen(buf));
                 }
                     
-                kod_wyjscia = close(wypisanie); //Odczytanie kodu wyjścia ze zmiennej otwierającej plik wyjściowy
-                //Wpisanie do logów informacji o zakończonym zadaniu
-                syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy2[zadanie],  zadania_tab2[zadanie][3], zadania_tab2[zadanie][0], zadania_tab2[zadanie][1], kod_wyjscia);
                 exit(EXIT_SUCCESS);
             }
             zadanie++; //Zwiększamy zmienną zliczającą ilość wykonanych zadań

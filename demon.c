@@ -325,6 +325,13 @@ int main(int argc, char *argv[])
         perror("Nie udało się zarejestrować obsługi sygnału SIGUSR2");
         exit(EXIT_FAILURE);
     }
+
+    //SIGALRM inicjalizacja
+    if (signal(SIGALRM, handler) == SIG_ERR)
+    {
+        perror("Nie udało się zarejestrować obsługi sygnału SIGALRM");
+        exit(EXIT_FAILURE);
+    }
     
     if (pid < 0) //Przypadek błędnego utworzenia procesu
     {
@@ -342,7 +349,7 @@ int main(int argc, char *argv[])
             //Ustawienie czasomierza
             alarm(sekundy);
             
-	        printf("Demon obudzi sie za: %d sekund\n", sekundy);
+	        //printf("Demon obudzi sie za: %d sekund\n", sekundy);
 	        pause(); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
 
             pid_t pid2 = fork(); //Proces potomny wykonujący zadanie

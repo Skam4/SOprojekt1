@@ -51,19 +51,18 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
 //Wypisywanie wyniku polecenia i/lub błędu do pliku
 void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
-    pid_t pid = fork(); //Tworzenie procesu potomnego wykonującego komendę
+    pid_t pid3 = fork(); //Tworzenie procesu potomnego wykonującego komendę
     int status;
     int kod_wyjscia;
 
-    if (pid == -1) 
+    if (pid3 == -1) 
     {
         printf("Błąd podczas tworzenia procesu potomnego.\n");
         exit(EXIT_FAILURE);
     } 
-    else if (pid == 0) 
+    else if (pid3 == 0) 
     {
         // Proces potomny
-<<<<<<< HEAD
         char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
         char znak = '|';
         int licz_potoki=0;
@@ -76,28 +75,28 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
                 licz_potoki++;
             }
         }
+
+        int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
+        if(parametr==0)
+        {
+            dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+            dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
+        }
+        if(parametr==1)
+        {
+            dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
+            dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
+        }
+        if(parametr==2)
+        {
+            dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+            dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
+        }
+        close(dev_null);
+        close(wypisanie);
         
         if(licz_potoki == 0)
         {
-            int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
-            if(parametr==0)
-            {
-                dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-                dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
-            }
-            if(parametr==1)
-            {
-                dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
-                dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-            }
-            if(parametr==2)
-            {
-                dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-                dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-            }
-            close(dev_null);
-            close(wypisanie);
-
             while(i<10)
             {
                 if(i==0)
@@ -115,11 +114,10 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
             perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
 
             exit(EXIT_FAILURE);
-
         }
-        if(parametr==1)
+        else
         {
-            //Obsluga potokow (na razie tylko dzieli na kolejne komendy)
+            //Obsluga potokow (na razie tylko dwoch)
             char *potoki[licz_potoki+1];
             i=0;
             while(i<licz_potoki+1)
@@ -154,12 +152,79 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
                 }
                 i++;
             }
-        }
 
+            int fd[2];
+            pid_t pid4;
+
+            if (pipe(fd) == -1) 
+            {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
+
+            pid4 = fork();
+            if (pid4 == -1) 
+            {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            } 
+            else if (pid4 == 0) 
+            {
+                i=0;
+                // proces potomny
+                // przekieruj wejście na fd[0]
+                dup2(fd[0], STDIN_FILENO);
+
+                // zamknij nieużywane końce rury
+                close(fd[0]);
+                close(fd[1]);
+
+                while(i<10)
+                {
+                    if(i==0)
+                    {
+                        arg[i] = strtok(potoki[1]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+                    }
+                    else
+                    {
+                        arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+                    }
+                    i++;
+                }
+                execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
+                perror("execlp");
+                exit(EXIT_FAILURE);
+            } 
+            i=0;
+            // proces macierzysty
+            // przekieruj wyjście na fd[1]
+            dup2(fd[1], STDOUT_FILENO);
+
+            // zamknij nieużywane końce rury
+            close(fd[0]);
+            close(fd[1]);
+
+            while(i<10)
+            {
+                if(i==0)
+                {
+                    arg[i] = strtok(potoki[0]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+                }
+                else
+                {
+                    arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+                }
+                i++;
+            }
+
+            execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL);
+            perror("execlp");
+            exit(EXIT_FAILURE);
+        }
     }
 
     // Proces macierzysty
-    waitpid(pid, &status, 0);
+    waitpid(pid3, &status, 0);
     kod_wyjscia = WEXITSTATUS(status);
 
     syslog(LOG_INFO, "Zakonczono polecenie %s z kodem wyjscia %d\n", komendy[zadanie], kod_wyjscia);

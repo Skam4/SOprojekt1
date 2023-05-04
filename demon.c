@@ -63,6 +63,7 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
     else if (pid == 0) 
     {
         // Proces potomny
+<<<<<<< HEAD
         char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
         char znak = '|';
         int licz_potoki=0;
@@ -114,8 +115,9 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
             perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
 
             exit(EXIT_FAILURE);
+
         }
-        else
+        if(parametr==1)
         {
             //Obsluga potokow (na razie tylko dzieli na kolejne komendy)
             char *potoki[licz_potoki+1];
@@ -153,6 +155,7 @@ void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr
                 i++;
             }
         }
+
     }
 
     // Proces macierzysty

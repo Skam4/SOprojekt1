@@ -4,12 +4,22 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
 #include <setjmp.h>
+
+
+pid_t child_pids[6]; // tablica przechowująca identyfikatory procesów pochodnych
+int ile_procesy = 0; // licznik ilości procesów potomnych
+
+char *taskfile;
+char *outfile;
+char *nazwa_programu;
+
 
 //Funkcja sortująca wczytane polecenia sortowaniem przez wstawianie
 void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
@@ -41,43 +51,116 @@ void Sortowanie(int zadania[][4], int n, char komendy[][100]) {
 //Wypisywanie wyniku polecenia i/lub błędu do pliku
 void stdout_stderr(int wypisanie, char komendy[][100], int zadanie, int parametr)
 {
-    int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
-    if(parametr==0)
-    {
-        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-        dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
-    }
-    if(parametr==1)
-    {
-        dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
-        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-    }
-    if(parametr==2)
-    {
-        dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
-        dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
-    }
-    close(wypisanie);
-    close(dev_null);
+    pid_t pid = fork(); //Tworzenie procesu potomnego wykonującego komendę
+    int status;
+    int kod_wyjscia;
 
-    char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
-    int i=0;
-
-    while(i<10)
+    if (pid == -1) 
     {
-        if(i==0)
+        printf("Błąd podczas tworzenia procesu potomnego.\n");
+        exit(EXIT_FAILURE);
+    } 
+    else if (pid == 0) 
+    {
+        // Proces potomny
+        char* arg[10]; //Tablica przechowująca kolejne argumenty przekazane w tablicy komendy
+        char znak = '|';
+        int licz_potoki=0;
+        int i=0;
+
+        for(int j=0; j<strlen(komendy[zadanie]); j++) //Sprawdzanie czy nalezy obsluzyc potoki
         {
-            arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+            if(strncmp(&komendy[zadanie][j],&znak,1)==0)
+            {
+                licz_potoki++;
+            }
+        }
+        
+        if(licz_potoki == 0)
+        {
+            int dev_null = open("/dev/null", O_WRONLY); //Otwarcie urządzenia /dev/null w celu wypisania do niego niepotrzebnych na standardowym wyjściu informacji
+            if(parametr==0)
+            {
+                dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+                dup2(dev_null, STDERR_FILENO); //Przekierowanie wyjścia błędu do urządzenia /dev/null
+            }
+            if(parametr==1)
+            {
+                dup2(dev_null, STDOUT_FILENO); //Przekierowanie standardowego wyjścia do urządzenia /dev/null
+                dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
+            }
+            if(parametr==2)
+            {
+                dup2(wypisanie, STDOUT_FILENO); //Przekierowanie standardowego wyjścia na wypisywanie do pliku
+                dup2(wypisanie, STDERR_FILENO); //Przekierowanie wyjścia błędu na wypisywanie do pliku
+            }
+            close(dev_null);
+            close(wypisanie);
+
+            while(i<10)
+            {
+                if(i==0)
+                {
+                    arg[i] = strtok(komendy[zadanie]," "); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+                }
+                else
+                {
+                    arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+                }
+                i++;
+            }
+
+            execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL); //Funkcja execpl wywołuje proces, który wykonuje przekazane polecenie
+            perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
+
+            exit(EXIT_FAILURE);
         }
         else
         {
-            arg[i] = strtok(NULL," "); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+            //Obsluga potokow (na razie tylko dzieli na kolejne komendy)
+            char *potoki[licz_potoki+1];
+            i=0;
+            while(i<licz_potoki+1)
+            {
+                if(i==0)
+                {
+                    potoki[i] = strtok(komendy[zadanie],"|"); //Pierwszy argument przyjmuje wartość tablicy komend aż do pierwszego znaku pustego, którymi argumenty są rozdzielone
+                    
+                    if (potoki[i][0]==' ') 
+                    {
+                        memmove(potoki[i], potoki[i]+1, strlen(potoki[i])); // przesunięcie elementów o 1 pozycję w lewo
+                        //potoki[i][strlen(potoki[i])-1] = '\0'; // usunięcie ostatniego elementu
+                    }
+
+                    char buf[100];
+                    snprintf(buf, sizeof(buf), "\npotoki[%d] = %s\n",i,potoki[i]);
+                    write(wypisanie, buf, strlen(buf));
+                }
+                else
+                {
+                    potoki[i] = strtok(NULL,"|"); //Każdy kolejny argument przyjmuje kolejne wartości przekazane w tablicy komend
+                    
+                    if (potoki[i][0]==' ') 
+                    {
+                        memmove(potoki[i], potoki[i]+1, strlen(potoki[i])); // przesunięcie elementów o 1 pozycję w lewo
+                        //potoki[i][strlen(potoki[i])-1] = '\0'; // usunięcie ostatniego elementu
+                    }
+
+                    char buf[100];
+                    snprintf(buf, sizeof(buf), "\npotoki[%d] = %s\n",i,potoki[i]);
+                    write(wypisanie, buf, strlen(buf));
+                }
+                i++;
+            }
         }
-        i++;
     }
 
-    execlp(arg[0], arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], NULL); //Funkcja execpl wywołuje proces, który wykonuje przekazane polecenie
-    perror("Error"); //Funkcja perror zwraca błąd powstały z wykonania polecenia (jeżeli takowy błąd wystąpił)
+    // Proces macierzysty
+    waitpid(pid, &status, 0);
+    kod_wyjscia = WEXITSTATUS(status);
+
+    syslog(LOG_INFO, "Zakonczono polecenie %s z kodem wyjscia %d\n", komendy[zadanie], kod_wyjscia);
+
     exit(1);
 }
 
@@ -94,11 +177,10 @@ int CzasDoZadania(int hour, int minutes)
 	return czas1-czas2 > 1 ? czas1-czas2 : 1; //Jeżeli ilość pozostałych sekund jest większa od 1, to jest przekazywana, a jeżeli jest mniejsza lub róna 1, to zwracana jest 1 sekunda (co w praktyce oznacza, że w tym momencie jest godzina o której należy wykonać kolejne zadanie)
 }
 
-jmp_buf restart_point; //Punkt skoku wykorzystywany przy wykryciu sygnału SIGUSR1
-
 int **tasks; //Tablica z zadaniami, potrzebna do obsługi sygnałów
 char *taski; //Tablica przetrzymująca polecenia jako napisy
 int wiersze; //Tunkcja zapamiętująca ilość wierszy w tablicy tasks
+
 
 //FUnkcja sigalarm - potrzebna do pause
 void handler(int signum)
@@ -106,19 +188,38 @@ void handler(int signum)
 	
 }
 
-//Funkcja obsługująca sygnał SIGINT (Ctrl+C)
+//Funkcja obsługująca sygnał SIGINT
 void sigint_handler(int sig)
 {
     exit(EXIT_SUCCESS); //W momencie wykrycia sygnału, proces kończy się
 }
 
 //Funkcja obsługująca sygnał SIGUSR1
-void sigusr1_handler(int sig) 
+void sigusr1_handler(int sig)
 {
-    //Ustawienie wartości powrotu dla longjmp()
-    int return_value = 1;
-    //Wywołanie longjmp() z przygotowanym punktem skoku
-    longjmp(restart_point, return_value);
+	printf("SIGUSR1 odpalił się");
+	fflush(stdout);
+	printf("ile_procesy: %d\n", ile_procesy);
+	if (sig == SIGUSR1) 
+	{
+		// Zabicie obecnych procesów pochodnych
+		for (int i = 0; i < ile_procesy; i++) 
+		{
+			printf("%d\n", i);
+			kill(child_pids[i], SIGTERM);
+		}
+
+		// Oczekiwanie na zakończenie procesów pochodnych
+		for (int i = 0; i < ile_procesy; i++) 
+		{
+			waitpid(child_pids[i], NULL, 0);
+		}
+		
+		// Ponowne uruchomienie programu z takimi samymi argumentami
+		char *args[] = {nazwa_programu, taskfile, outfile, NULL};
+		execv(args[0], args);
+	}
+
 }
 
 //Funkcja obsługująca sygnał SIGUSR2
@@ -148,11 +249,8 @@ void czysc()
 //Funkcja main
 int main(int argc, char *argv[]) 
 {
-    //If do którego funkcja wchodzi, gdy wywołamy SIGUSR1
-    if (setjmp(restart_point) != 0) {
-        //Kod do wykonania w momencie powrotu z sigusr1_handler
-        printf("SIGUSR1 WYKONANY!\n");
-    }
+
+    printf("main");
 
     //Tworzenie identyfikatora
     pid_t pid;
@@ -164,10 +262,12 @@ int main(int argc, char *argv[])
         return 1;
     }
     
+    //Do nazwa_programu przydzielamy nazwę programu
+    nazwa_programu = argv[0];
     //Do taskfile przydzielamy argument 1
-    char *taskfile = argv[1];
+    taskfile = argv[1];
     //Do outfile przydzielamy argument 2
-    char *outfile = argv[2];
+    outfile = argv[2];
     
     //Otwieranie pliku taskfile i outfile
     int zadania = open(taskfile, O_RDONLY);
@@ -187,7 +287,7 @@ int main(int argc, char *argv[])
         printf("Nie mozna otworzyc pliku outfile!\n");
         return 1;
     }
-
+    
     int n = 100; // maksymalna liczba zadań, którą chcemy obsłużyć
     int **zadania_tab = (int **)malloc(n * sizeof(int *)); // alokacja pamięci dla wierszy
     for (int i = 0; i < n; i++) {
@@ -247,6 +347,7 @@ int main(int argc, char *argv[])
             linia[i++] = znak;
         }
     }
+
     close(zadania); //Zamknięcie pliku taskfile po wczytaniu wszystkich zadań
 
     //Filtrowanie zadań (pozbywanie się zadań, które w pliku zostały wpisane z godziną wcześniejszą niż godzina rozpoczęcia programu)
@@ -258,7 +359,6 @@ int main(int argc, char *argv[])
     int zadania_tab2[ilosc_zadan+1][4]; //Tablica zadań, która bedzie przechowywała przefiltrowane zadania
     char komendy2[ilosc_zadan+1][100]; //Tablica komend przechwująca przefiltrowane komendy
     int pomoc = 0;//Zmienna pomocnicza oznacza kolejne indeksy zadania_tab2
-
 
 
     for(int i = 0; i < ilosc_zadan ; i++) //Przechodzimy po wszystkich wczytanych zadaniach
@@ -275,9 +375,7 @@ int main(int argc, char *argv[])
             pomoc++; //Zwiększenie wartości pomocniczej zmiennej oznaczającej kolejne indeksy zadania_tab2
         }
     }
-
     //pomoc--; //Jednorazowe zmniejszenie wartości nowej ilości zadań
-
 
     //Alokacja pamięci tablicy tasks
     tasks = (int **) malloc(pomoc+1 * sizeof(int *));
@@ -292,7 +390,7 @@ int main(int argc, char *argv[])
     {
         tasks[i] = (int *) malloc(4 * sizeof(int));
         tasks[i] = zadania_tab2[i];
-        taski[i] = komendy2[i];
+        strcpy(&taski[i], komendy2[i]);
     }
 
     //Sortowanie chronologiczne instrukcji (wczytujemy tablicę ze wszystkimi parametrami, ilość wszystkich wczytanych zadań oraz tablicę z konkretnymi komendami)
@@ -326,7 +424,6 @@ int main(int argc, char *argv[])
         perror("Nie udało się zarejestrować obsługi sygnału SIGUSR2");
         exit(EXIT_FAILURE);
     }
-    
 
     //SIGALRM inicjalizacja
     if (signal(SIGALRM, handler) == SIG_ERR)
@@ -347,16 +444,12 @@ int main(int argc, char *argv[])
     	{
             //Obliczenie ilości sekund pozostałych do wykonania kolejnego zadania
             sekundy = CzasDoZadania(zadania_tab2[zadanie][0], zadania_tab2[zadanie][1]);
-
+            
             //Ustawienie czasomierza
             alarm(sekundy);
             
 	        //printf("Demon obudzi sie za: %d sekund\n", sekundy);
 	        pause(); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
-
-	    	//printf("Demon obudzi sie za: %d sekund\n", sekundy);
-	    	sleep(sekundy); //Demon śpi przez obliczoną ilość sekund, dzięki czemu budzi się o czasie wykonywania zadania określonym w taskfile
-
 
             pid_t pid2 = fork(); //Proces potomny wykonujący zadanie
 
@@ -396,9 +489,6 @@ int main(int argc, char *argv[])
                     write(wypisanie, buf, strlen(buf));
                 }
                     
-                kod_wyjscia = close(wypisanie); //Odczytanie kodu wyjścia ze zmiennej otwierającej plik wyjściowy
-                //Wpisanie do logów informacji o zakończonym zadaniu
-                syslog(LOG_INFO, "Zakonczono polecenie %s z parametrem %d o godzinie %d:%d z kodem wyjscia %d\n", komendy2[zadanie],  zadania_tab2[zadanie][3], zadania_tab2[zadanie][0], zadania_tab2[zadanie][1], kod_wyjscia);
                 exit(EXIT_SUCCESS);
             }
             zadanie++; //Zwiększamy zmienną zliczającą ilość wykonanych zadań
